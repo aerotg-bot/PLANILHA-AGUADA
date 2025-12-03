@@ -215,7 +215,6 @@
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
     // BASE DE DADOS - VOLUME (m³)
-    // IMPORTANTE: Se o mês ainda não chegou, usamos 0 para não quebrar o gráfico
     const dataVol = {
         baseNaval: {
             2024: [39599, 41471, 38758, 40874, 39625, 33576, 32257, 29161, 30129, 37508, 24498, 28735],
@@ -286,6 +285,9 @@
         // Dados totais para gráfico financeiro
         const totalVol = volsBN.map((v, i) => v + (volsLP[i] || 0));
         
+        // Filtra dados futuros (zeros) para gráficos de linha ficarem bonitos
+        const cleanData = (arr) => arr.map((v, i) => (year === '2025' && v === 0 && i > 9) ? null : v); 
+
         // --- GRÁFICO DE VOLUME (BARRAS EMPILHADAS) ---
         if(chVol) chVol.destroy();
         chVol = new Chart(document.getElementById('chartVolume'), {
@@ -307,8 +309,8 @@
             data: {
                 labels: months,
                 datasets: [
-                    { label: 'Valor Pago (R$)', data: costs, type: 'line', borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', yAxisID: 'y1', tension: 0.3, fill: true },
-                    { label: 'Consumo (m³)', data: totalVol, backgroundColor: 'rgba(13,110,253,0.5)', yAxisID: 'y' }
+                    { label: 'Valor Pago (R$)', data: cleanData(costs), type: 'line', borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', yAxisID: 'y1', tension: 0.3, fill: true },
+                    { label: 'Consumo (m³)', data: cleanData(totalVol), backgroundColor: 'rgba(13,110,253,0.4)', yAxisID: 'y' }
                 ]
             },
             options: {
@@ -321,11 +323,8 @@
         });
 
         // --- GRÁFICOS COMPARATIVOS ---
-        // Comparativo Volume
         const vol24 = dataVol.baseNaval[2024].map((v, i) => v + dataVol.lespan[2024][i]);
         const vol25 = dataVol.baseNaval[2025].map((v, i) => v + dataVol.lespan[2025][i]);
-        
-        // Filtra zeros do 2025 para o gráfico de linha não cair pra zero abruptamente
         const vol25Clean = vol25.map(v => v > 0 ? v : null);
         
         if(chCmpVol) chCmpVol.destroy();
@@ -340,9 +339,9 @@
             }
         });
 
-        // Comparativo Financeiro
         const fin24 = dataFin[2024];
-        const fin25 = dataFin[2025].map(v => v > 0 ? v : null);
+        const fin25 = dataFin[2025];
+        const fin25Clean = fin25.map(v => v > 0 ? v : null);
 
         if(chCmpFin) chCmpFin.destroy();
         chCmpFin = new Chart(document.getElementById('chartCompFin'), {
@@ -351,7 +350,7 @@
                 labels: months,
                 datasets: [
                     { label: '2024', data: fin24, backgroundColor: '#adb5bd' },
-                    { label: '2025', data: fin25, backgroundColor: '#198754' }
+                    { label: '2025', data: fin25Clean, backgroundColor: '#198754' }
                 ]
             }
         });
@@ -365,13 +364,12 @@
         let html25 = '', html24 = '', htmlComp = '';
 
         for(let i=0; i<12; i++) {
-            // Dados 2025
+            // 2025
             let bn25 = dataVol.baseNaval[2025][i] || 0;
             let lp25 = dataVol.lespan[2025][i] || 0;
             let tot25 = bn25 + lp25;
             let c25 = dataFin[2025][i] || 0;
             
-            // Só mostra na tabela se tiver valor ou se não tiver passado o ano todo
             html25 += `<tr>
                 <td>${months[i]}</td>
                 <td>${bn25 > 0 ? bn25.toLocaleString() : '-'}</td>
@@ -380,7 +378,7 @@
                 <td class="fw-bold text-success">${c25 > 0 ? c25.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '-'}</td>
             </tr>`;
 
-            // Dados 2024
+            // 2024
             let bn24 = dataVol.baseNaval[2024][i] || 0;
             let lp24 = dataVol.lespan[2024][i] || 0;
             let tot24 = bn24 + lp24;
@@ -404,7 +402,6 @@
             let arrowVol = varVol > 0 ? '▲' : '▼';
             let arrowCost = varCost > 0 ? '▲' : '▼';
 
-            // Se não tem dado em 2025, mostra traço
             let displayVarVol = tot25 > 0 ? `<span class="${classVol}">${arrowVol} ${Math.abs(varVol).toFixed(1)}%</span>` : '-';
             let displayVarCost = c25 > 0 ? `<span class="${classCost}">${arrowCost} ${Math.abs(varCost).toFixed(1)}%</span>` : '-';
 
